@@ -6,6 +6,7 @@
 #include <stack>
 #include <string>
 #include "heap.h"
+
 using namespace std;
 
 // Global arrays for node information
