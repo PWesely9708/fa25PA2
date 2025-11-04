@@ -89,45 +89,75 @@ int createLeafNodes(int freq[]) {
 }
 
 // Step 3: Build the encoding tree using heap operations
+
+// Build the encoding tree using the MinHeap.
+// Input: nextFree = number of leaf nodes already created at indices [0..nextFree-1].
+// Process:
+//   - Push all existing leaf indices into the heap (priority = weightArr[leaf]).
+//   - Repeat: pop two smallest nodes, create a parent (sum weights), push parent.
+//   - When one element remains, that's the root; return its index.
+// Edge cases:
+//   - If there are no leaves, return -1 (no tree).
+//   - If there is exactly one leaf, return it directly (single-symbol input).
 int buildEncodingTree(int nextFree) {
     if (nextFree == 0) return -1;
 
     MinHeap h;
+    // Initialize heap with all leaves that have positive frequency.
     for (int i = 0; i < nextFree; ++i) {
         if (weightArr[i] > 0) {
             h.push(i, weightArr);
         }
     }
 
-    int freeIdx = nextFree;
+    int freeIdx = nextFree; // next available slot for internal nodes
 
+    // Single distinct symbol: tree is just that node.
     if (h.size == 1) {
         int rootOnly = h.pop(weightArr);
         return rootOnly;
     }
 
+    // Combine two lightest subtrees until only the root remains.
     while (h.size > 1) {
         int left = h.pop(weightArr);
         int right = h.pop(weightArr);
 
         int parent = freeIdx++;
+        // Parent's weight is the sum of children.
         weightArr[parent] = weightArr[left] + weightArr[right];
+        // Link children; mark as an internal node with '\0' (not a printable char).
         leftArr[parent]   = left;
         rightArr[parent]  = right;
         charArr[parent]   = '\0';
 
+        // Push the new combined subtree back into the heap.
         h.push(parent, weightArr);
     }
 
+    // The remaining node is the tree root.
     int root = h.pop(weightArr);
     return root;
 }
 
 // Step 4: Use an STL stack to generate codes
+
+// Generate variable-length codes for each symbol with iterative DFS (no recursion).
+// Rules:
+//   - Going LEFT appends '0' to the path, RIGHT appends '1'.
+//   - When a LEAF is reached, assign its accumulated path as its code.
+//   - Single-symbol edge: if the root is also a leaf, its path is empty;
+//     assign "0" so the encoded output isn’t empty.
+//
+// Implementation details:
+//   - Uses std::stack of (nodeIndex, pathString) pairs to simulate recursion.
+//   - Push RIGHT first, then LEFT, so LEFT is processed first when popping (typical DFS order).
 void generateCodes(int root, string codes[]) {
+    // Clear any previous codes to avoid stale entries.
     for (int i = 0; i < 26; ++i) codes[i].clear();
     if (root == -1) return;
 
+    // Start DFS from root with an empty path.
     stack<pair<int, string>> st;
     st.push({root, ""});
 
@@ -143,11 +173,15 @@ void generateCodes(int root, string codes[]) {
         bool isLeaf = (L == -1 && R == -1);
 
         if (isLeaf) {
+            // Leaf: write its code into table (a..z only).
             char ch = charArr[node];
             if (ch >= 'a' && ch <= 'z') {
+                // If there was only one distinct symbol, path == "" → assign "0".
                 codes[ch - 'a'] = path.empty() ? string("0") : path;
             }
         } else {
+            // Internal node: continue DFS.
+            // Push right first so that left is processed first after the next pop.
             if (R != -1) st.push({R, path + "1"});
             if (L != -1) st.push({L, path + "0"});
         }
